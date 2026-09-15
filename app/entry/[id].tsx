@@ -2,16 +2,24 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import EntryForm from '../../components/EntryForm';
+import type { LocationValue } from '../../components/LocationPicker';
 import { deleteEntry, getEntryById, updateEntry } from '../../lib/db/entries';
 import { getAllCategories } from '../../lib/db/categories';
 import { addPhoto, deletePhoto, getPhotosByEntryId } from '../../lib/db/photos';
-import { initDatabase } from '../../lib/db/init';
+import { initDatabase, TRIP_CATEGORY_ID } from '../../lib/db/init';
 import { toDateString } from '../../lib/date';
+import { useTheme } from '../../lib/theme';
+import { useT } from '../../lib/i18n';
+import { useAuthStore } from '../../lib/store/authStore';
+import { deleteEntryFromCloud } from '../../lib/supabase/backup';
 import type { Category } from '../../lib/db/types';
 
 export default function EntryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { colors } = useTheme();
+  const t = useT();
+  const session = useAuthStore((s) => s.session);
   const [categories, setCategories] = useState<Category[]>([]);
   const [date, setDate] = useState(new Date());
   const [content, setContent] = useState('');
@@ -20,6 +28,7 @@ export default function EntryDetailScreen() {
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [originalPhotoId, setOriginalPhotoId] = useState<string | null>(null);
   const [originalPhotoPath, setOriginalPhotoPath] = useState<string | null>(null);
+  const [location, setLocation] = useState<LocationValue | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useFocusEffect(
@@ -38,6 +47,16 @@ export default function EntryDetailScreen() {
             setContent(entry.content);
             setMood(entry.mood);
             setCategoryId(entry.category_id);
+            setLocation(
+              entry.latitude != null && entry.longitude != null
+                ? {
+                    latitude: entry.latitude,
+                    longitude: entry.longitude,
+                    locationName: entry.location_name,
+                    country: entry.country,
+                  }
+                : null
+            );
           }
           setPhotoPath(photos[0]?.file_path ?? null);
           setOriginalPhotoId(photos[0]?.id ?? null);
@@ -53,12 +72,17 @@ export default function EntryDetailScreen() {
 
   const handleSubmit = async () => {
     if (!content.trim() || !categoryId) return;
+    const isTrip = categoryId === TRIP_CATEGORY_ID;
     try {
       await updateEntry(id, {
         date: toDateString(date),
         content: content.trim(),
         mood,
         category_id: categoryId,
+        latitude: isTrip ? (location?.latitude ?? null) : null,
+        longitude: isTrip ? (location?.longitude ?? null) : null,
+        location_name: isTrip ? (location?.locationName ?? null) : null,
+        country: isTrip ? (location?.country ?? null) : null,
       });
       if (photoPath !== originalPhotoPath) {
         if (originalPhotoId) await deletePhoto(originalPhotoId);
@@ -71,10 +95,10 @@ export default function EntryDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Girişi Sil', 'Bu girişi silmek istediğinize emin misiniz?', [
-      { text: 'Vazgeç', style: 'cancel' },
+    Alert.alert(t.entryDetail.deleteConfirmTitle, t.entryDetail.deleteConfirmMessage, [
+      { text: t.entryDetail.cancel, style: 'cancel' },
       {
-        text: 'Sil',
+        text: t.entryDetail.delete,
         style: 'destructive',
         onPress: async () => {
           try {
@@ -82,6 +106,13 @@ export default function EntryDetailScreen() {
             router.back();
           } catch (error) {
             console.error('Giriş silinemedi:', error);
+            return;
+          }
+          // Local silme zaten tamamlandı ve ekran kapandı; bulut senkronu arkada,
+          // beklenmeden (best-effort) tetikleniyor — deleteEntryFromCloud kendi
+          // içinde tüm hataları yutuyor, burada UI'yi bloklamamak için await edilmiyor.
+          if (session) {
+            void deleteEntryFromCloud(session.user.id, id);
           }
         },
       },
@@ -91,7 +122,7 @@ export default function EntryDetailScreen() {
   if (!loaded) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <EntryForm
         date={date}
         onChangeDate={setDate}
@@ -104,12 +135,25 @@ export default function EntryDetailScreen() {
         onChangeCategoryId={setCategoryId}
         photoPath={photoPath}
         onChangePhotoPath={setPhotoPath}
+        location={location}
+        onChangeLocation={setLocation}
         onSubmit={handleSubmit}
-        submitLabel="Güncelle"
+        submitLabel={t.entryDetail.update}
       />
-      <Pressable style={styles.deleteButton} onPress={handleDelete}>
-        <Text style={styles.deleteText}>Sil</Text>
-      </Pressable>
+      <View style={styles.actionsRow}>
+        <Pressable
+          style={[styles.actionButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => router.push(`/share-entry?id=${id}`)}
+        >
+          <Text style={[styles.actionText, { color: colors.text }]}>{t.entryDetail.share}</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.actionButton, { backgroundColor: colors.dangerSoft }]}
+          onPress={handleDelete}
+        >
+          <Text style={[styles.actionText, { color: colors.danger }]}>{t.entryDetail.delete}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -118,15 +162,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  deleteButton: {
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
     margin: 16,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
   },
-  deleteText: {
-    color: '#DC2626',
+  actionButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+  },
+  actionText: {
     fontSize: 16,
     fontWeight: '700',
   },

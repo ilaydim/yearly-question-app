@@ -1,44 +1,15 @@
 import { useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import * as ImagePicker from 'expo-image-picker';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { Directory, File, Paths } from 'expo-file-system';
+import { useTheme } from '../lib/theme';
+import { useT } from '../lib/i18n';
+import { useSettingsStore } from '../lib/store/settingsStore';
+import { pickAndProcessPhoto } from '../lib/photoPicker';
+import LocationPicker, { type LocationValue } from './LocationPicker';
+import { TRIP_CATEGORY_ID } from '../lib/db/init';
 import type { Category } from '../lib/db/types';
 
 export const MOODS = ['😊', '😐', '😢', '😡', '😴'];
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-async function pickAndProcessPhoto(source: 'camera' | 'library'): Promise<string | null> {
-  const permission =
-    source === 'camera'
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-  if (!permission.granted) {
-    Alert.alert('İzin gerekli', 'Fotoğraf eklemek için izin vermelisin.');
-    return null;
-  }
-
-  const result =
-    source === 'camera'
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
-
-  if (result.canceled || !result.assets[0]) return null;
-
-  const manipulated = await ImageManipulator.manipulate(result.assets[0].uri)
-    .resize({ width: 1280, height: null })
-    .renderAsync()
-    .then((ref) => ref.saveAsync({ format: SaveFormat.JPEG, compress: 0.7 }));
-
-  const destination = new File(new Directory(Paths.document), `photo-${Date.now()}.jpg`);
-  await new File(manipulated.uri).copy(destination);
-  return destination.uri;
-}
 
 interface EntryFormProps {
   date: Date;
@@ -52,6 +23,8 @@ interface EntryFormProps {
   onChangeCategoryId: (id: string) => void;
   photoPath: string | null;
   onChangePhotoPath: (path: string | null) => void;
+  location: LocationValue | null;
+  onChangeLocation: (value: LocationValue | null) => void;
   onSubmit: () => void;
   submitLabel: string;
 }
@@ -68,37 +41,58 @@ export default function EntryForm({
   onChangeCategoryId,
   photoPath,
   onChangePhotoPath,
+  location,
+  onChangeLocation,
   onSubmit,
   submitLabel,
 }: EntryFormProps) {
+  const { colors } = useTheme();
+  const t = useT();
+  const language = useSettingsStore((s) => s.language);
   const [showPicker, setShowPicker] = useState(false);
   const [processingPhoto, setProcessingPhoto] = useState(false);
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
 
   const handlePickPhoto = async (source: 'camera' | 'library') => {
     setProcessingPhoto(true);
     try {
-      const uri = await pickAndProcessPhoto(source);
+      const uri = await pickAndProcessPhoto(source, {
+        permissionTitle: t.entryForm.permissionTitle,
+        permissionMessage: t.entryForm.permissionMessage,
+      });
       if (uri) onChangePhotoPath(uri);
     } catch (error) {
       console.error('Fotoğraf işlenemedi:', error);
-      Alert.alert('Hata', 'Fotoğraf eklenemedi.');
+      Alert.alert(t.entryForm.photoErrorTitle, t.entryForm.photoErrorMessage);
     } finally {
       setProcessingPhoto(false);
     }
   };
 
   const handleAddPhotoPress = () => {
-    Alert.alert('Fotoğraf Ekle', undefined, [
-      { text: 'Kamera', onPress: () => handlePickPhoto('camera') },
-      { text: 'Galeri', onPress: () => handlePickPhoto('library') },
-      { text: 'Vazgeç', style: 'cancel' },
+    Alert.alert(t.entryForm.addPhoto, undefined, [
+      { text: t.entryForm.camera, onPress: () => handlePickPhoto('camera') },
+      { text: t.entryForm.gallery, onPress: () => handlePickPhoto('library') },
+      { text: t.entryForm.cancel, style: 'cancel' },
     ]);
   };
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
-      <Pressable style={styles.dateButton} onPress={() => setShowPicker(true)}>
-        <Text style={styles.dateText}>{formatDate(date)}</Text>
+    <ScrollView
+      style={[styles.scroll, { backgroundColor: colors.bg }]}
+      contentContainerStyle={styles.container}
+    >
+      <Pressable
+        style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={() => setShowPicker(true)}
+      >
+        <Text style={[styles.dateText, { color: colors.text }]}>{formatDate(date)}</Text>
       </Pressable>
       {showPicker && (
         <DateTimePicker
@@ -113,14 +107,18 @@ export default function EntryForm({
       )}
 
       <TextInput
-        style={styles.input}
+        style={[
+          styles.input,
+          { backgroundColor: colors.card, borderColor: colors.border, color: colors.text },
+        ]}
         multiline
-        placeholder="Bugün ne oldu?"
+        placeholder={t.entryForm.placeholder}
+        placeholderTextColor={colors.subtext}
         value={content}
         onChangeText={onChangeContent}
       />
 
-      <Text style={styles.label}>Kategori</Text>
+      <Text style={[styles.label, { color: colors.subtext }]}>{t.entryForm.category}</Text>
       <View style={styles.row}>
         {categories.map((category) => {
           const selected = categoryId === category.id;
@@ -134,7 +132,12 @@ export default function EntryForm({
               ]}
               onPress={() => onChangeCategoryId(category.id)}
             >
-              <Text style={selected ? styles.chipTextSelected : styles.chipText}>
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: selected ? '#FFFFFF' : colors.text },
+                ]}
+              >
                 {category.name}
               </Text>
             </Pressable>
@@ -142,20 +145,36 @@ export default function EntryForm({
         })}
       </View>
 
-      <Text style={styles.label}>Ruh Hali</Text>
+      <Text style={[styles.label, { color: colors.subtext }]}>{t.entryForm.mood}</Text>
       <View style={styles.row}>
-        {MOODS.map((emoji) => (
-          <Pressable
-            key={emoji}
-            style={[styles.moodButton, mood === emoji && styles.moodButtonSelected]}
-            onPress={() => onChangeMood(mood === emoji ? null : emoji)}
-          >
-            <Text style={styles.moodEmoji}>{emoji}</Text>
-          </Pressable>
-        ))}
+        {MOODS.map((emoji) => {
+          const selected = mood === emoji;
+          return (
+            <Pressable
+              key={emoji}
+              style={[
+                styles.moodButton,
+                { backgroundColor: colors.card },
+                selected && { backgroundColor: colors.accent },
+              ]}
+              onPress={() => onChangeMood(selected ? null : emoji)}
+            >
+              <Text style={styles.moodEmoji}>{emoji}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      <Text style={styles.label}>Fotoğraf</Text>
+      {categoryId === TRIP_CATEGORY_ID && (
+        <>
+          <Text style={[styles.label, { color: colors.subtext }]}>
+            {t.tripLocation.sectionTitle}
+          </Text>
+          <LocationPicker value={location} onChange={onChangeLocation} colors={colors} />
+        </>
+      )}
+
+      <Text style={[styles.label, { color: colors.subtext }]}>{t.entryForm.photo}</Text>
       {photoPath ? (
         <View style={styles.photoPreviewWrap}>
           <Image source={{ uri: photoPath }} style={styles.photoPreview} />
@@ -165,18 +184,24 @@ export default function EntryForm({
         </View>
       ) : (
         <Pressable
-          style={styles.photoButton}
+          style={[styles.photoButton, { backgroundColor: colors.card }]}
           disabled={processingPhoto}
           onPress={handleAddPhotoPress}
         >
-          <Text style={styles.photoButtonText}>
-            {processingPhoto ? 'Yükleniyor…' : 'Fotoğraf Ekle'}
+          <Text style={[styles.photoButtonText, { color: colors.text }]}>
+            {processingPhoto ? t.entryForm.uploading : t.entryForm.addPhoto}
           </Text>
         </Pressable>
       )}
 
-      <Pressable style={styles.submitButton} onPress={onSubmit}>
-        <Text style={styles.submitText}>{submitLabel}</Text>
+      <Pressable
+        style={({ pressed }) => [
+          styles.submitButton,
+          { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 },
+        ]}
+        onPress={onSubmit}
+      >
+        <Text style={[styles.submitText, { color: colors.accentText }]}>{submitLabel}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -193,8 +218,8 @@ const styles = StyleSheet.create({
   dateButton: {
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: '#F1F1F4',
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
     alignSelf: 'flex-start',
   },
   dateText: {
@@ -203,9 +228,8 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 140,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DDD',
     padding: 12,
     fontSize: 16,
     textAlignVertical: 'top',
@@ -213,7 +237,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#666',
   },
   row: {
     flexDirection: 'row',
@@ -230,35 +253,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  chipTextSelected: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFF',
-  },
   moodButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F1F4',
-  },
-  moodButtonSelected: {
-    backgroundColor: '#4F46E5',
   },
   moodEmoji: {
     fontSize: 22,
   },
   photoButton: {
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: '#F1F1F4',
   },
   photoButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
   },
   photoPreviewWrap: {
     alignSelf: 'flex-start',
@@ -286,13 +298,11 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 12,
-    backgroundColor: '#4F46E5',
-    borderRadius: 8,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
   submitText: {
-    color: '#FFF',
     fontSize: 16,
     fontWeight: '700',
   },

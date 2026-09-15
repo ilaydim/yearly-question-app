@@ -1,0 +1,40 @@
+-- Supabase SQL Editor'de çalıştır (Project → SQL Editor → New query).
+-- Bucket'ı Dashboard → Storage → "New bucket" ile de public olarak elle oluşturabilirsin;
+-- aşağıdaki insert aynı şeyi SQL üzerinden yapıyor, ikisini birden yapmana gerek yok.
+
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+-- Herkes (giriş yapmamış dahil) avatar dosyalarını okuyabilsin — profil fotoğrafları
+-- public URL ile <img>/<Image> içinde gösterilecek.
+create policy "avatar images are publicly accessible"
+  on storage.objects for select
+  to public
+  using (bucket_id = 'avatars');
+
+-- Yazma sadece kendi klasörüne: path {user_id}/avatar.jpg olduğu için storage.foldername(name)'in
+-- ilk parçası (klasör adı) auth.uid() ile eşleşmiyorsa insert/update/delete reddedilir.
+create policy "users can upload their own avatar"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "users can update their own avatar"
+  on storage.objects for update
+  to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "users can delete their own avatar"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

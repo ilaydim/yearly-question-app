@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Yıl Halkaları — İkon ve Splash Animasyon Konsepti</title>
+<style>
+  body {
+    font-family: -apple-system, sans-serif;
+    background: #f2f2f2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 20px;
+    margin: 0;
+  }
+  .col { text-align: center; }
+  .label { font-size: 13px; color: #555; margin-top: 10px; }
+  button {
+    display: block;
+    margin: 24px auto 0;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LIGHT MODE ============ -->
+<div class="col">
+  <div style="width:140px;height:140px;border-radius:31px;background:#FFFFFF;border:1px solid #e5e5e5;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+    <svg width="120" height="120" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="60" fill="#2EC4B6"/>
+      <circle cx="70" cy="70" r="54" fill="#74D9D0"/>
+      <circle cx="70" cy="70" r="48" fill="#BAEEEA"/>
+      <circle cx="70" cy="70" r="42" fill="#DCF7F5"/>
+      <circle cx="70" cy="70" r="36" fill="#F3FCFC"/>
+      <circle cx="70" cy="70" r="30" fill="#FFF1DE"/>
+      <circle cx="70" cy="70" r="24" fill="#FFD49B"/>
+      <circle cx="70" cy="70" r="18" fill="#FFBB60"/>
+      <circle cx="70" cy="70" r="12" fill="#FFAD3E"/>
+      <circle cx="70" cy="70" r="6"  fill="#FF9F1C"/>
+    </svg>
+  </div>
+  <p class="label">App icon — light mode</p>
+</div>
+
+<div class="col">
+  <div id="splash-frame-l" style="width:170px;height:340px;border-radius:26px;background:#FFFFFF;border:1px solid #e5e5e5;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;transition:background-color 0.6s ease;">
+    <div id="grow-icon-l" style="width:140px;height:140px;transform-origin:center;transition:opacity 0.6s ease;">
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <circle cx="70" cy="70" r="60" fill="#2EC4B6"/>
+        <circle cx="70" cy="70" r="54" fill="#74D9D0"/>
+        <circle cx="70" cy="70" r="48" fill="#BAEEEA"/>
+        <circle cx="70" cy="70" r="42" fill="#DCF7F5"/>
+        <circle cx="70" cy="70" r="36" fill="#F3FCFC"/>
+        <circle cx="70" cy="70" r="30" fill="#FFF1DE"/>
+        <circle cx="70" cy="70" r="24" fill="#FFD49B"/>
+        <circle cx="70" cy="70" r="18" fill="#FFBB60"/>
+        <circle cx="70" cy="70" r="12" fill="#FFAD3E"/>
+        <circle cx="70" cy="70" r="6"  fill="#FF9F1C"/>
+      </svg>
+    </div>
+  </div>
+  <p class="label">Splash — light mode</p>
+  <button onclick="runSplash('l', '#FFFFFF', '#FF9F1C')">Tekrar oynat</button>
+</div>
+
+<!-- ============ DARK MODE ============ -->
+<div class="col">
+  <div style="width:140px;height:140px;border-radius:31px;background:#00487C;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+    <svg width="120" height="120" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="60" fill="#00487C"/>
+      <circle cx="70" cy="70" r="54" fill="#1C557E"/>
+      <circle cx="70" cy="70" r="48" fill="#3E6680"/>
+      <circle cx="70" cy="70" r="42" fill="#2A6D9A"/>
+      <circle cx="70" cy="70" r="36" fill="#0F76BD"/>
+      <circle cx="70" cy="70" r="30" fill="#0281D9"/>
+      <circle cx="70" cy="70" r="24" fill="#038DEF"/>
+      <circle cx="70" cy="70" r="18" fill="#0C99FF"/>
+      <circle cx="70" cy="70" r="12" fill="#2BA6FE"/>
+      <circle cx="70" cy="70" r="6"  fill="#4BB3FD"/>
+    </svg>
+  </div>
+  <p class="label">App icon — dark mode</p>
+</div>
+
+<div class="col">
+  <div id="splash-frame-d" style="width:170px;height:340px;border-radius:26px;background:#00487C;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;transition:background-color 0.6s ease;">
+    <div id="grow-icon-d" style="width:140px;height:140px;transform-origin:center;transition:opacity 0.6s ease;">
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <circle cx="70" cy="70" r="60" fill="#00487C"/>
+        <circle cx="70" cy="70" r="54" fill="#1C557E"/>
+        <circle cx="70" cy="70" r="48" fill="#3E6680"/>
+        <circle cx="70" cy="70" r="42" fill="#2A6D9A"/>
+        <circle cx="70" cy="70" r="36" fill="#0F76BD"/>
+        <circle cx="70" cy="70" r="30" fill="#0281D9"/>
+        <circle cx="70" cy="70" r="24" fill="#038DEF"/>
+        <circle cx="70" cy="70" r="18" fill="#0C99FF"/>
+        <circle cx="70" cy="70" r="12" fill="#2BA6FE"/>
+        <circle cx="70" cy="70" r="6"  fill="#4BB3FD"/>
+      </svg>
+    </div>
+  </div>
+  <p class="label">Splash — dark mode</p>
+  <button onclick="runSplash('d', '#00487C', '#4BB3FD')">Tekrar oynat</button>
+</div>
+
+<style>
+@keyframes growfill {
+  0%   { transform: scale(0);    opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: scale(4.5);  opacity: 1; }
+}
+.play { animation: growfill 1s cubic-bezier(0.3,0.6,0.35,1) forwards; }
+</style>
+
+<script>
+/*
+  Halka yarıçapları (140 birimlik viewBox içinde, merkezden dışa):
+  60, 54, 48, 42, 36, 30, 24, 18, 12, 6
+
+  Animasyon akışı:
+  1) İkon scale(0) -> scale(4.5), 1000ms, cubic-bezier(0.3,0.6,0.35,1)
+  2) ~1000ms'de: arka plan rengi "bitiş dolgusu"na geçer (0.6s), ikon aynı anda opacity 1 -> 0 (0.6s)
+  3) Yazı YOK — animasyon ikonun rengin içinde erimesiyle sona erer.
+*/
+function runSplash(mode, restBg, fillColor) {
+  var frame = document.getElementById('splash-frame-' + mode);
+  var icon  = document.getElementById('grow-icon-' + mode);
+
+  icon.classList.remove('play');
+  frame.style.transition = 'none';
+  icon.style.transition = 'none';
+  frame.style.backgroundColor = restBg;
+  icon.style.opacity = '0';
+  icon.style.transform = 'scale(0)';
+  void frame.offsetWidth;
+  frame.style.transition = 'background-color 0.6s ease';
+  icon.style.transition = 'opacity 0.6s ease';
+
+  icon.classList.add('play');
+
+  setTimeout(function () {
+    frame.style.backgroundColor = fillColor;
+    icon.style.opacity = '0';
+  }, 1000);
+}
+
+runSplash('l', '#FFFFFF', '#FF9F1C');
+runSplash('d', '#00487C', '#4BB3FD');
+</script>
+
+</body>
+</html>

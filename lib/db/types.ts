@@ -8,6 +8,7 @@ export interface Category {
 export interface Question {
   id: string;
   text: string;
+  text_en: string | null;
   recurrence_month: number;
   recurrence_day: number;
   is_custom: 0 | 1;
@@ -22,6 +23,10 @@ export interface Entry {
   question_id: string | null;
   created_at: string;
   updated_at: string;
+  latitude: number | null;
+  longitude: number | null;
+  location_name: string | null;
+  country: string | null;
 }
 
 export interface Photo {
@@ -29,4 +34,5 @@ export interface Photo {
   entry_id: string;
   file_path: string;
   created_at: string;
+  synced_at: string | null;
 }
