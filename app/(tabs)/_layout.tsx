@@ -12,13 +12,20 @@ function TabIcon({
   activeName,
   color,
   accent,
+  plain = false,
 }: {
   focused: boolean;
   name: IconName;
   activeName: IconName;
   color: ColorValue;
   accent: string;
+  // Profile ikonu için: çevresinde pill/daire çerçeve istemiyoruz, sadece ikonun kendisi.
+  plain?: boolean;
 }) {
+  if (plain) {
+    return <Ionicons name={focused ? activeName : name} size={24} color={color} />;
+  }
+
   const pillStyle: ViewStyle = {
     width: 46,
     height: 32,
@@ -106,10 +113,11 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused, color }) => (
             <TabIcon
               focused={focused}
-              name="person-circle-outline"
-              activeName="person-circle"
+              name="person-outline"
+              activeName="person"
               color={color}
               accent={colors.accent}
+              plain
             />
           ),
         }}

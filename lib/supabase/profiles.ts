@@ -8,6 +8,10 @@ export interface Profile {
   id: string;
   name: string | null;
   avatar_url: string | null;
+  birth_date: string | null;
+  gender: string | null;
+  light_palette: string | null;
+  dark_palette: string | null;
   updated_at: string;
 }
 
@@ -26,7 +30,14 @@ export async function getProfile(userId: string): Promise<Profile | null> {
 // yoksa (ör. trigger migration'dan önce açılmış hesap) diye bir güvenlik ağı.
 export async function updateProfile(
   userId: string,
-  updates: { name?: string | null; avatar_url?: string | null }
+  updates: {
+    name?: string | null;
+    avatar_url?: string | null;
+    birth_date?: string | null;
+    gender?: string | null;
+    light_palette?: string | null;
+    dark_palette?: string | null;
+  }
 ): Promise<void> {
   if (!isSupabaseConfigured) throw new Error(PROFILES_NOT_CONFIGURED);
   const { error } = await supabase

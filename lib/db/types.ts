@@ -19,7 +19,7 @@ export interface Entry {
   date: string;
   content: string;
   mood: string | null;
-  category_id: string;
+  category_id: string | null;
   question_id: string | null;
   created_at: string;
   updated_at: string;
@@ -27,6 +27,10 @@ export interface Entry {
   longitude: number | null;
   location_name: string | null;
   country: string | null;
+  // Doluysa bu satır bir "Yıl Sonu Kapsülü" girişidir, normal bir günlük yazısı değil —
+  // hangi yıl için yazıldığını tutar (bkz. lib/capsule.ts). Normal listeleme sorgularının
+  // hepsi bu alanı NULL olarak filtreler, kapsüller günlük akışında hiç görünmez.
+  capsule_year: number | null;
 }
 
 export interface Photo {

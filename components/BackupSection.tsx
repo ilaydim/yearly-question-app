@@ -57,7 +57,15 @@ export default function BackupSection() {
       const result = await runBackup(session.user.id, syncCursor);
       recordBackupAttempt(result.newCursor);
 
-      if (result.entriesIncomplete || result.photosFailed > 0) {
+      if (
+        result.entriesIncomplete ||
+        result.photosFailed > 0 ||
+        result.yearWordsFailed ||
+        result.futureLettersFailed ||
+        result.somedayListsFailed ||
+        result.somedayListFailed ||
+        result.goalsFailed
+      ) {
         Alert.alert(t.backup.partialTitle, t.backup.partialMessage);
       } else {
         Alert.alert(

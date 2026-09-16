@@ -13,17 +13,22 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Screen from '../components/Screen';
 import { useTheme } from '../lib/theme';
 import { useT } from '../lib/i18n';
+import { useSettingsStore } from '../lib/store/settingsStore';
 import { useAuthStore } from '../lib/store/authStore';
 import { useCloudProfileStore } from '../lib/store/cloudProfileStore';
 import { pickAndProcessPhoto } from '../lib/photoPicker';
+import { toDateString } from '../lib/date';
+import { GENDER_OPTIONS, type Gender } from '../lib/gender';
 import { getProfile, updateProfile, uploadAvatar, PROFILES_NOT_CONFIGURED } from '../lib/supabase/profiles';
 
 export default function EditProfileScreen() {
   const { colors } = useTheme();
   const t = useT();
+  const language = useSettingsStore((s) => s.language);
   const router = useRouter();
   const session = useAuthStore((s) => s.session);
   const cloudProfile = useCloudProfileStore((s) => s.profile);
@@ -36,6 +41,11 @@ export default function EditProfileScreen() {
     cloudProfile?.avatarUrl ?? null
   );
   const [pickedAvatarUri, setPickedAvatarUri] = useState<string | null>(null);
+  const [birthDate, setBirthDate] = useState<Date | null>(
+    cloudProfile?.birthDate ? new Date(cloudProfile.birthDate) : null
+  );
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [gender, setGender] = useState<Gender | null>((cloudProfile?.gender as Gender) ?? null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -45,6 +55,8 @@ export default function EditProfileScreen() {
       .then((profile) => {
         setName(profile?.name ?? '');
         setRemoteAvatarUrl(profile?.avatar_url ?? null);
+        setBirthDate(profile?.birth_date ? new Date(profile.birth_date) : null);
+        setGender((profile?.gender as Gender) ?? null);
       })
       .catch((err) => {
         console.error('Profil yüklenemedi:', err);
@@ -75,8 +87,14 @@ export default function EditProfileScreen() {
         avatarUrl = await uploadAvatar(session.user.id, pickedAvatarUri);
       }
       const trimmedName = name.trim() || null;
-      await updateProfile(session.user.id, { name: trimmedName, avatar_url: avatarUrl });
-      setCloudProfile({ name: trimmedName, avatarUrl });
+      const birthDateStr = birthDate ? toDateString(birthDate) : null;
+      await updateProfile(session.user.id, {
+        name: trimmedName,
+        avatar_url: avatarUrl,
+        birth_date: birthDateStr,
+        gender,
+      });
+      setCloudProfile({ name: trimmedName, avatarUrl, birthDate: birthDateStr, gender });
       router.back();
     } catch (err) {
       console.error('Profil kaydedilemedi:', err);
@@ -110,6 +128,12 @@ export default function EditProfileScreen() {
   }
 
   const shownAvatar = pickedAvatarUri ?? remoteAvatarUrl;
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
 
   return (
     <Screen colors={colors} edges={['bottom']}>
@@ -150,6 +174,62 @@ export default function EditProfileScreen() {
             value={name}
             onChangeText={setName}
           />
+
+          <Text style={[styles.label, { color: colors.subtext }]}>
+            {t.editProfile.birthDateLabel}
+          </Text>
+          <Pressable
+            style={[
+              styles.input,
+              styles.dateButton,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={{ color: birthDate ? colors.text : colors.subtext, fontSize: 16 }}>
+              {birthDate ? formatDate(birthDate) : t.auth.birthDatePlaceholder}
+            </Text>
+            <Ionicons name="calendar-outline" size={18} color={colors.subtext} />
+          </Pressable>
+          {showDatePicker && (
+            <DateTimePicker
+              value={birthDate ?? new Date()}
+              mode="date"
+              display="default"
+              maximumDate={new Date()}
+              onChange={(_event, selected) => {
+                setShowDatePicker(false);
+                if (selected) setBirthDate(selected);
+              }}
+            />
+          )}
+
+          <Text style={[styles.label, { color: colors.subtext }]}>{t.editProfile.genderLabel}</Text>
+          <View style={styles.genderRow}>
+            {GENDER_OPTIONS.map((option) => {
+              const selected = gender === option;
+              return (
+                <Pressable
+                  key={option}
+                  style={[
+                    styles.genderChip,
+                    { borderColor: colors.border },
+                    selected && { backgroundColor: colors.accent, borderColor: colors.accent },
+                  ]}
+                  onPress={() => setGender(selected ? null : option)}
+                >
+                  <Text
+                    style={[
+                      styles.genderChipText,
+                      { color: selected ? colors.accentText : colors.text },
+                    ]}
+                  >
+                    {t.gender[option]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {error && <Text style={[styles.error, { color: colors.danger }]}>{error}</Text>}
 
@@ -234,6 +314,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 12,
     fontSize: 16,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  genderRow: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  genderChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  genderChipText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   error: {
     alignSelf: 'stretch',

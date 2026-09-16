@@ -1,16 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Screen from '../components/Screen';
-import { useTheme } from '../lib/theme';
+import MenuCard from '../components/MenuCard';
+import MenuRow from '../components/MenuRow';
+import { useTheme, getPalette } from '../lib/theme';
 import { useT } from '../lib/i18n';
-import { useSettingsStore, type Language, type ThemeMode } from '../lib/store/settingsStore';
+import {
+  useSettingsStore,
+  PALETTE_KEYS,
+  type Language,
+  type PaletteKey,
+  type ThemeMode,
+} from '../lib/store/settingsStore';
 import { useAuthStore } from '../lib/store/authStore';
 import { useReminderStore } from '../lib/store/reminderStore';
 import { usePinLockStore } from '../lib/store/pinLockStore';
 import { clearPin } from '../lib/security/pin';
 import { signOut } from '../lib/supabase/auth';
+import { updateProfile } from '../lib/supabase/profiles';
+import { useScrollHeader } from '../lib/useScrollHeader';
 import {
   cancelDailyReminder,
   getNotificationPermissionStatus,
@@ -31,6 +42,10 @@ export default function SettingsScreen() {
   const setThemeMode = useSettingsStore((s) => s.setThemeMode);
   const language = useSettingsStore((s) => s.language);
   const setLanguage = useSettingsStore((s) => s.setLanguage);
+  const lightPalette = useSettingsStore((s) => s.lightPalette);
+  const setLightPalette = useSettingsStore((s) => s.setLightPalette);
+  const darkPalette = useSettingsStore((s) => s.darkPalette);
+  const setDarkPalette = useSettingsStore((s) => s.setDarkPalette);
   const session = useAuthStore((s) => s.session);
 
   const reminderEnabled = useReminderStore((s) => s.enabled);
@@ -43,6 +58,7 @@ export default function SettingsScreen() {
 
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const { scrollY, onScroll } = useScrollHeader();
 
   const pinEnabled = usePinLockStore((s) => s.pinEnabled);
   const setPinEnabled = usePinLockStore((s) => s.setPinEnabled);
@@ -112,6 +128,27 @@ export default function SettingsScreen() {
     setReminderEnabled(value);
   };
 
+  // Yerel değişiklik anında uygulanır (misafir kullanıcı da paleti değiştirebilsin);
+  // oturum varsa arka planda (fire-and-forget) profiles'a da yazılır ki başka bir
+  // cihazda girişte de aynı palet gelsin (bkz. lib/paletteSync.ts).
+  const handlePickLightPalette = (key: PaletteKey) => {
+    setLightPalette(key);
+    if (session) {
+      updateProfile(session.user.id, { light_palette: key }).catch((error) =>
+        console.error('Açık tema paleti kaydedilemedi:', error)
+      );
+    }
+  };
+
+  const handlePickDarkPalette = (key: PaletteKey) => {
+    setDarkPalette(key);
+    if (session) {
+      updateProfile(session.user.id, { dark_palette: key }).catch((error) =>
+        console.error('Koyu tema paleti kaydedilemedi:', error)
+      );
+    }
+  };
+
   const themeOptions: { value: ThemeMode; label: string }[] = [
     { value: 'system', label: t.settings.themeSystem },
     { value: 'light', label: t.settings.themeLight },
@@ -124,8 +161,19 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <Screen colors={colors} edges={['bottom']}>
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+    <Screen
+      colors={colors}
+      title={t.settings.title}
+      scrollY={scrollY}
+      onBack={() => router.back()}
+      edges={['top', 'bottom']}
+    >
+    <Animated.ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+    >
       <Text style={[styles.sectionTitle, { color: colors.subtext }]}>{t.settings.appearance}</Text>
       <View style={[styles.segment, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {themeOptions.map((option) => {
@@ -143,6 +191,62 @@ export default function SettingsScreen() {
                 ]}
               >
                 {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={[styles.sectionTitle, { color: colors.subtext }]}>
+        {t.settings.lightPalette}
+      </Text>
+      <View style={styles.swatchRow}>
+        {PALETTE_KEYS.map((key) => {
+          const swatch = getPalette('light', key);
+          const selected = lightPalette === key;
+          return (
+            <Pressable
+              key={key}
+              style={styles.swatchWrap}
+              onPress={() => handlePickLightPalette(key)}
+            >
+              <View
+                style={[
+                  styles.swatch,
+                  { backgroundColor: swatch.accent },
+                  selected && { borderWidth: 3, borderColor: colors.text },
+                ]}
+              >
+                {selected && <Ionicons name="checkmark" size={16} color={swatch.accentText} />}
+              </View>
+              <Text style={[styles.swatchLabel, { color: colors.subtext }]}>
+                {t.settings.paletteNames[key]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={[styles.sectionTitle, { color: colors.subtext }]}>
+        {t.settings.darkPalette}
+      </Text>
+      <View style={styles.swatchRow}>
+        {PALETTE_KEYS.map((key) => {
+          const swatch = getPalette('dark', key);
+          const selected = darkPalette === key;
+          return (
+            <Pressable key={key} style={styles.swatchWrap} onPress={() => handlePickDarkPalette(key)}>
+              <View
+                style={[
+                  styles.swatch,
+                  { backgroundColor: swatch.accent },
+                  selected && { borderWidth: 3, borderColor: colors.text },
+                ]}
+              >
+                {selected && <Ionicons name="checkmark" size={16} color={swatch.accentText} />}
+              </View>
+              <Text style={[styles.swatchLabel, { color: colors.subtext }]}>
+                {t.settings.paletteNames[key]}
               </Text>
             </Pressable>
           );
@@ -239,54 +343,66 @@ export default function SettingsScreen() {
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.subtext }]}>{t.settings.account}</Text>
-      {session ? (
-        <>
-          <Text style={[styles.email, { color: colors.text }]}>{session.user.email}</Text>
-          <Pressable
-            style={[styles.logoutButton, { backgroundColor: colors.dangerSoft }]}
+      {session && <Text style={[styles.email, { color: colors.text }]}>{session.user.email}</Text>}
+      <MenuCard colors={colors}>
+        {session ? (
+          <MenuRow
+            icon="log-out-outline"
+            label={t.settings.logout}
             onPress={handleLogout}
-          >
-            <Text style={[styles.logoutText, { color: colors.danger }]}>{t.settings.logout}</Text>
-          </Pressable>
-        </>
-      ) : (
-        // __DEV__ modunda root guard atlandığı için oturumsuz Ayarlar'a girilebiliyor;
-        // auth ekranlarını yine de test edebilmek için bu satır sadece dev'de gösteriliyor.
-        __DEV__ && (
-          <Pressable
-            style={[styles.loginRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => router.push('/sign-in')}
-          >
-            <Text style={[styles.loginRowText, { color: colors.accent }]}>
-              {t.settings.loginRow}
-            </Text>
-          </Pressable>
-        )
-      )}
+            colors={colors}
+            tint={colors.danger}
+            showChevron={false}
+            showDivider
+          />
+        ) : (
+          // __DEV__ modunda root guard atlandığı için oturumsuz Ayarlar'a girilebiliyor;
+          // auth ekranlarını yine de test edebilmek için bu satır sadece dev'de gösteriliyor.
+          __DEV__ && (
+            <MenuRow
+              icon="log-in-outline"
+              label={t.settings.loginRow}
+              onPress={() => router.push('/sign-in')}
+              colors={colors}
+              showDivider
+            />
+          )
+        )}
+        <MenuRow
+          icon="chatbubble-ellipses-outline"
+          label={t.settings.feedbackRow}
+          onPress={() => router.push('/feedback')}
+          colors={colors}
+        />
+      </MenuCard>
 
-      <Pressable
-        style={[styles.loginRow, styles.feedbackRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-        onPress={() => router.push('/feedback')}
-      >
-        <Text style={[styles.loginRowText, { color: colors.accent }]}>
-          {t.settings.feedbackRow}
-        </Text>
-      </Pressable>
+      {session && (
+        <MenuCard colors={colors}>
+          <MenuRow
+            icon="trash-outline"
+            label={t.settings.deleteAccountRow}
+            onPress={() => router.push('/delete-account')}
+            colors={colors}
+            tint={colors.danger}
+            showChevron={false}
+          />
+        </MenuCard>
+      )}
 
       {__DEV__ && (
         <>
           <Text style={[styles.sectionTitle, { color: colors.subtext }]}>Geliştirici</Text>
-          <Pressable
-            style={[styles.loginRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => router.push('/dev/pen-preview')}
-          >
-            <Text style={[styles.loginRowText, { color: colors.accent }]}>
-              Kalem Animasyonu Önizleme
-            </Text>
-          </Pressable>
+          <MenuCard colors={colors}>
+            <MenuRow
+              icon="brush-outline"
+              label="Kalem Animasyonu Önizleme"
+              onPress={() => router.push('/dev/pen-preview')}
+              colors={colors}
+            />
+          </MenuCard>
         </>
       )}
-    </ScrollView>
+    </Animated.ScrollView>
     </Screen>
   );
 }
@@ -323,6 +439,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  swatchRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  swatchWrap: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  swatch: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  swatchLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   card: {
     borderRadius: 12,
     borderWidth: 1,
@@ -356,31 +492,9 @@ const styles = StyleSheet.create({
   warning: {
     fontSize: 13,
   },
-  logoutButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  logoutText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
   email: {
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
-  },
-  loginRow: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  loginRowText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  feedbackRow: {
-    marginTop: 16,
   },
 });

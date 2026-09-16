@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Screen from '../components/Screen';
@@ -43,6 +43,7 @@ export default function PinDisableScreen() {
 
   return (
     <Screen colors={colors} edges={['bottom']}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.container}>
         <Text style={[styles.title, { color: colors.text }]}>{t.pinLock.disableTitle}</Text>
         <Text style={[styles.subtitle, { color: colors.subtext }]}>{t.pinLock.enterCurrentPin}</Text>
@@ -58,11 +59,15 @@ export default function PinDisableScreen() {
         />
         {error && <Text style={[styles.error, { color: colors.danger }]}>{t.pinLock.wrongPin}</Text>}
       </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     alignItems: 'center',

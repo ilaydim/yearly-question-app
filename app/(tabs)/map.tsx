@@ -9,17 +9,13 @@ import { getPhotoMap } from '../../lib/db/photos';
 import { initDatabase } from '../../lib/db/init';
 import { useTheme, type Palette } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
+import { useIsPremiumUser } from '../../lib/premium';
 import type { Category, Entry } from '../../lib/db/types';
 
 // TODO: IAP kurulunca bu flag'i gerçek "kullanıcı premium mi" kontrolüne bağla
 // (ör. bir entitlements store'undan okunacak). true olduğunda aşağıdaki paywall
 // overlay'i haritanın üstünü kaplayıp etkileşimi engelleyecek şekilde zaten hazır.
 const MAP_VIEW_REQUIRES_PREMIUM = false;
-
-function useIsPremiumUser(): boolean {
-  // TODO: IAP kurulunca gerçek entitlement kontrolüyle değiştir.
-  return false;
-}
 
 // Hiç konumlu giriş yokken (ya da yüklenmeden önce initialRegion için) gösterilen,
 // tüm dünyayı kapsayan varsayılan görünüm — bu ekran sadece anılara bakmak için,
@@ -120,7 +116,8 @@ function GroupMarker({
 }) {
   const withPhoto = group.entries.find((entry) => photos[entry.id]);
   const thumbUri = withPhoto ? photos[withPhoto.id] : undefined;
-  const swatchColor = categories[group.entries[0]?.category_id]?.color ?? colors.accent;
+  const firstCategoryId = group.entries[0]?.category_id;
+  const swatchColor = (firstCategoryId ? categories[firstCategoryId]?.color : undefined) ?? colors.accent;
 
   return (
     <Marker coordinate={group.coordinate} onPress={onPress} tracksViewChanges>
@@ -215,7 +212,7 @@ export default function MapScreen() {
   }
 
   return (
-    <Screen colors={colors} edges={['top']}>
+    <Screen colors={colors} title={t.tabs.map} edges={['top']}>
       <View style={styles.flex}>
         <MapView
           ref={mapRef}
@@ -226,7 +223,7 @@ export default function MapScreen() {
           {tier === 'individual'
             ? entries.map((entry) => {
                 const photoUri = photos[entry.id];
-                const color = categories[entry.category_id]?.color ?? colors.accent;
+                const color = (entry.category_id ? categories[entry.category_id]?.color : undefined) ?? colors.accent;
                 return (
                   <Marker
                     key={entry.id}

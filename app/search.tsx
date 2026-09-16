@@ -117,7 +117,7 @@ export default function SearchScreen() {
           ) : null
         }
         renderItem={({ item }) => {
-          const category = categoryMap[item.category_id];
+          const category = item.category_id ? categoryMap[item.category_id] : undefined;
           return (
             <Pressable
               style={({ pressed }) => [

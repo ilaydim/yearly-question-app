@@ -1,0 +1,110 @@
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">İyileştirilmiş splash animasyonu: halkalar sırayla belirir, ikon büyür, sonra renk yumuşakça ekrana yayılır</h2>
+<div style="display:flex; gap:32px; flex-wrap:wrap; justify-content:center; align-items:flex-start; padding:1rem 0;">
+
+  <div>
+    <div id="frame-l" style="width:170px;height:340px;border-radius:26px;background:#FFFFFF;border:0.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;">
+      <div id="icon-l" style="width:140px;height:140px;">
+        <svg width="140" height="140" viewBox="0 0 140 140">
+          <circle class="ring" cx="70" cy="70" r="60" fill="#2EC4B6" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="54" fill="#74D9D0" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="48" fill="#BAEEEA" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="42" fill="#DCF7F5" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="36" fill="#F3FCFC" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="30" fill="#FFF1DE" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="24" fill="#FFD49B" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="18" fill="#FFBB60" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="12" fill="#FFAD3E" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="6"  fill="#FF9F1C" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+        </svg>
+      </div>
+      <div id="overlay-l" style="position:absolute;inset:0;background:#FF9F1C;opacity:0;"></div>
+    </div>
+    <div style="display:flex;justify-content:center;margin-top:12px;">
+      <button onclick="runSplash('l','#FFFFFF','#FF9F1C')">Tekrar oynat — light</button>
+    </div>
+  </div>
+
+  <div>
+    <div id="frame-d" style="width:170px;height:340px;border-radius:26px;background:#00487C;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;">
+      <div id="icon-d" style="width:140px;height:140px;">
+        <svg width="140" height="140" viewBox="0 0 140 140">
+          <circle class="ring" cx="70" cy="70" r="60" fill="#00487C" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="54" fill="#1C557E" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="48" fill="#3E6680" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="42" fill="#2A6D9A" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="36" fill="#0F76BD" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="30" fill="#0281D9" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="24" fill="#038DEF" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="18" fill="#0C99FF" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="12" fill="#2BA6FE" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+          <circle class="ring" cx="70" cy="70" r="6"  fill="#4BB3FD" style="transform-box:fill-box;transform-origin:center;opacity:0;transform:scale(0);"/>
+        </svg>
+      </div>
+      <div id="overlay-d" style="position:absolute;inset:0;background:#4BB3FD;opacity:0;"></div>
+    </div>
+    <div style="display:flex;justify-content:center;margin-top:12px;">
+      <button onclick="runSplash('d','#00487C','#4BB3FD')">Tekrar oynat — dark</button>
+    </div>
+  </div>
+
+</div>
+
+<style>
+@keyframes ringpop {
+  0%   { transform: scale(0);    opacity: 0; }
+  65%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes icongrow {
+  from { transform: scale(1); }
+  to   { transform: scale(4.5); }
+}
+.ring.play  { animation: ringpop 0.42s cubic-bezier(0.2,0.9,0.3,1.1) forwards; }
+.icon.play  { animation: icongrow 0.95s cubic-bezier(0.22,0.61,0.36,1) forwards; }
+</style>
+
+<script>
+function runSplash(mode, restBg, fillColor){
+  var frame   = document.getElementById('frame-' + mode);
+  var iconWrap= document.getElementById('icon-' + mode);
+  var overlay = document.getElementById('overlay-' + mode);
+  var rings   = iconWrap.querySelectorAll('.ring');
+
+  frame.style.backgroundColor = restBg;
+  overlay.style.transition = 'none';
+  overlay.style.opacity = '0';
+  iconWrap.classList.remove('icon','play');
+  rings.forEach(function(r){
+    r.classList.remove('ring','play'); void 0;
+  });
+
+  void frame.offsetWidth;
+
+  rings.forEach(function(r, idx){
+    r.classList.add('ring');
+    r.style.opacity = '0';
+    r.style.transform = 'scale(0)';
+    var delay = (rings.length - 1 - idx) * 45;
+    r.style.animationDelay = delay + 'ms';
+    r.classList.add('play');
+  });
+
+  var bloomEnd = (rings.length - 1) * 45 + 420;
+
+  setTimeout(function(){
+    iconWrap.classList.add('icon');
+    iconWrap.style.animationDelay = '0ms';
+    iconWrap.classList.add('play');
+  }, bloomEnd - 60);
+
+  var growEnd = bloomEnd - 60 + 950;
+
+  setTimeout(function(){
+    overlay.style.transition = 'opacity 0.65s ease';
+    overlay.style.opacity = '1';
+  }, growEnd - 150);
+}
+
+runSplash('l', '#FFFFFF', '#FF9F1C');
+runSplash('d', '#00487C', '#4BB3FD');
+</script>

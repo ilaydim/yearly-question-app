@@ -3,8 +3,10 @@ import Constants from 'expo-constants';
 
 export type PermissionStatus = 'granted' | 'denied' | 'undetermined' | 'unsupported';
 export const DAILY_REMINDER_TYPE = 'daily-reminder';
+export const FUTURE_LETTER_TYPE = 'future-letter';
 
 const ANDROID_CHANNEL_ID = 'daily-reminder';
+const ANDROID_CHANNEL_ID_FUTURE_LETTER = 'future-letter';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -43,12 +45,30 @@ function loadNotifications(): NotificationsModule | null {
   return notificationsModule;
 }
 
-async function ensureAndroidChannel(Notifications: NotificationsModule): Promise<void> {
+async function ensureAndroidChannel(
+  Notifications: NotificationsModule,
+  channelId: string,
+  name: string
+): Promise<void> {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
-    name: 'Günlük Hatırlatma',
+  await Notifications.setNotificationChannelAsync(channelId, {
+    name,
     importance: Notifications.AndroidImportance.DEFAULT,
   });
+}
+
+// Sadece belirtilen `type`e (data.type) sahip zamanlanmış bildirimleri iptal eder.
+// cancelAllScheduledNotificationsAsync() KULLANILMIYOR: artık birden fazla bağımsız
+// bildirim türü bir arada var olabiliyor (günlük hatırlatma + Geleceğe Mektup'un
+// tek seferlik bildirimleri) — hepsini iptal etmek, örn. kullanıcı Ayarlar'ı her
+// açtığında hatırlatma zamanlamasını güncellerken henüz açılmamış mektupların
+// bildirimlerini de sessizce silerdi.
+async function cancelByType(Notifications: NotificationsModule, type: string): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  const matching = scheduled.filter(
+    (n) => (n.content.data as { type?: string } | undefined)?.type === type
+  );
+  await Promise.all(matching.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
 }
 
 export async function getNotificationPermissionStatus(): Promise<PermissionStatus> {
@@ -76,8 +96,8 @@ export async function scheduleDailyReminder(
 ): Promise<void> {
   const Notifications = loadNotifications();
   if (!Notifications) return;
-  await ensureAndroidChannel(Notifications);
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await ensureAndroidChannel(Notifications, ANDROID_CHANNEL_ID, 'Günlük Hatırlatma');
+  await cancelByType(Notifications, DAILY_REMINDER_TYPE);
   await Notifications.scheduleNotificationAsync({
     content: {
       title: content.title,
@@ -96,7 +116,36 @@ export async function scheduleDailyReminder(
 export async function cancelDailyReminder(): Promise<void> {
   const Notifications = loadNotifications();
   if (!Notifications) return;
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await cancelByType(Notifications, DAILY_REMINDER_TYPE);
+}
+
+// Geleceğe Mektup: unlockAt'te (tek seferlik) tetiklenir. Dönen identifier, mektup
+// satırıyla birlikte (notification_id) saklanır — mektup açılmadan silinirse bu id
+// ile cancelScheduledNotification() çağrılıp bildirim iptal edilir.
+export async function scheduleFutureLetterNotification(
+  unlockAt: Date,
+  content: { title: string; body: string }
+): Promise<string | null> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return null;
+  await ensureAndroidChannel(Notifications, ANDROID_CHANNEL_ID_FUTURE_LETTER, 'Geleceğe Mektup');
+  return Notifications.scheduleNotificationAsync({
+    content: {
+      title: content.title,
+      body: content.body,
+      data: { type: FUTURE_LETTER_TYPE },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: unlockAt,
+    },
+  });
+}
+
+export async function cancelScheduledNotification(identifier: string): Promise<void> {
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
+  await Notifications.cancelScheduledNotificationAsync(identifier);
 }
 
 export async function getLastNotificationResponseType(): Promise<string | undefined> {

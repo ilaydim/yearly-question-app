@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import Screen from '../../components/Screen';
 import { getEntriesForQuestion, getQuestionForDate } from '../../lib/db/questions';
 import { createEntry, updateEntry } from '../../lib/db/entries';
-import { initDatabase, QUESTION_CATEGORY_ID } from '../../lib/db/init';
+import { initDatabase } from '../../lib/db/init';
 import { generateId } from '../../lib/db/id';
 import { toDateString } from '../../lib/date';
 import { useTheme } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
 import { useSettingsStore } from '../../lib/store/settingsStore';
+import { useScrollHeader } from '../../lib/useScrollHeader';
 import { PAPER } from '../../lib/paper';
 import type { Entry, Question } from '../../lib/db/types';
 
@@ -53,6 +63,7 @@ export default function QuestionScreen() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [answer, setAnswer] = useState('');
   const fade = useRef(new Animated.Value(0)).current;
+  const { scrollY, onScroll } = useScrollHeader();
 
   const load = useCallback(async (month: number, day: number) => {
     setLoaded(false);
@@ -119,7 +130,7 @@ export default function QuestionScreen() {
           date: viewedDateStr,
           content: answer.trim(),
           mood: null,
-          category_id: QUESTION_CATEGORY_ID,
+          category_id: null,
           question_id: question.id,
           created_at: now,
           updated_at: now,
@@ -127,6 +138,7 @@ export default function QuestionScreen() {
           longitude: null,
           location_name: null,
           country: null,
+          capsule_year: null,
         });
       }
       const rows = await getEntriesForQuestion(question.id);
@@ -139,7 +151,7 @@ export default function QuestionScreen() {
   const paper = PAPER[scheme];
 
   return (
-    <Screen colors={colors}>
+    <Screen colors={colors} title={t.tabs.question} scrollY={scrollY}>
       <View style={styles.header}>
         <Pressable onPress={goPrev} hitSlop={10} style={styles.navButton}>
           <Ionicons name="chevron-back" size={22} color={colors.accent} />
@@ -155,10 +167,13 @@ export default function QuestionScreen() {
       {!loaded ? null : !question ? (
         <Text style={[styles.empty, { color: colors.subtext }]}>{t.question.notFound}</Text>
       ) : (
-        <ScrollView
+        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Animated.ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
+          onScroll={onScroll}
+          scrollEventThrottle={16}
         >
           <Animated.View style={{ opacity: fade, gap: 14 }}>
             <Text style={[styles.question, { color: colors.text }]}>
@@ -220,13 +235,17 @@ export default function QuestionScreen() {
               )}
             </View>
           </Animated.View>
-        </ScrollView>
+        </Animated.ScrollView>
+        </KeyboardAvoidingView>
       )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

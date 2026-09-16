@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Screen from '../components/Screen';
@@ -60,6 +60,7 @@ export default function PinSetupScreen() {
 
   return (
     <Screen colors={colors} edges={['bottom']}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.container}>
         <Text style={[styles.title, { color: colors.text }]}>{t.pinLock.setupTitle}</Text>
         <Text style={[styles.subtitle, { color: colors.subtext }]}>
@@ -77,11 +78,15 @@ export default function PinSetupScreen() {
         />
         {error && <Text style={[styles.error, { color: colors.danger }]}>{t.pinLock.mismatch}</Text>}
       </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     alignItems: 'center',

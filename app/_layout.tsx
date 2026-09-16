@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, View, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts, PlayfairDisplay_500Medium } from '@expo-google-fonts/playfair-display';
 import SplashAnimation from '../components/SplashAnimation';
+import { TITLE_FONT_FAMILY } from '../lib/fonts';
 import { useSettingsStore } from '../lib/store/settingsStore';
 import { useAuthStore } from '../lib/store/authStore';
 import { useBackupStore } from '../lib/store/backupStore';
@@ -12,6 +15,7 @@ import { SPLASH_FILL_COLOR } from '../lib/rings';
 import {
   addNotificationResponseListener,
   DAILY_REMINDER_TYPE,
+  FUTURE_LETTER_TYPE,
   getLastNotificationResponseType,
 } from '../lib/notifications';
 import { maybeRunBackup } from '../lib/backupScheduler';
@@ -54,6 +58,7 @@ function RootNavigator() {
 
     const goToQuestion = (type: string | undefined) => {
       if (type === DAILY_REMINDER_TYPE) router.push('/question');
+      if (type === FUTURE_LETTER_TYPE) router.push('/future-letters');
     };
 
     getLastNotificationResponseType().then(goToQuestion);
@@ -110,7 +115,7 @@ function RootNavigator() {
   }, [hasOnboarded, canEnterApp, session, t, router]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={!hasOnboarded}>
         <Stack.Screen name="welcome" />
@@ -138,15 +143,7 @@ function RootNavigator() {
             headerTintColor: colors.text,
           }}
         />
-        <Stack.Screen
-          name="settings"
-          options={{
-            headerShown: true,
-            title: t.settings.title,
-            headerStyle: { backgroundColor: colors.bg },
-            headerTintColor: colors.text,
-          }}
-        />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen
           name="stats"
           options={{
@@ -219,6 +216,61 @@ function RootNavigator() {
             headerTintColor: colors.text,
           }}
         />
+        <Stack.Screen
+          name="premium"
+          options={{
+            headerShown: true,
+            title: t.premium.title,
+            headerStyle: { backgroundColor: colors.bg },
+            headerTintColor: colors.text,
+          }}
+        />
+        <Stack.Screen
+          name="capsule"
+          options={{
+            headerShown: true,
+            title: t.capsule.title,
+            headerStyle: { backgroundColor: colors.bg },
+            headerTintColor: colors.text,
+          }}
+        />
+        <Stack.Screen
+          name="future-letters"
+          options={{
+            headerShown: true,
+            title: t.futureLetters.title,
+            headerStyle: { backgroundColor: colors.bg },
+            headerTintColor: colors.text,
+          }}
+        />
+        <Stack.Screen
+          name="someday-list"
+          options={{
+            headerShown: true,
+            title: t.somedayList.title,
+            headerStyle: { backgroundColor: colors.bg },
+            headerTintColor: colors.text,
+          }}
+        />
+        <Stack.Screen
+          name="goals"
+          options={{
+            headerShown: true,
+            title: t.goals.title,
+            headerStyle: { backgroundColor: colors.bg },
+            headerTintColor: colors.text,
+          }}
+        />
+        <Stack.Screen name="wrapped/[year]" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="delete-account"
+          options={{
+            headerShown: true,
+            title: t.deleteAccount.title,
+            headerStyle: { backgroundColor: colors.bg },
+            headerTintColor: colors.text,
+          }}
+        />
       </Stack.Protected>
 
       <Stack.Protected guard={hasOnboarded && (__DEV__ || !canEnterApp)}>
@@ -230,7 +282,7 @@ function RootNavigator() {
       </Stack.Protected>
     </Stack>
     {pinEnabled && locked && <PinLockScreen onUnlock={() => setLocked(false)} />}
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -240,6 +292,7 @@ export default function RootLayout() {
   const pinLockChecked = usePinLockStore((s) => s.checked);
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const [showIntro, setShowIntro] = useState(true);
+  const [fontsLoaded] = useFonts({ [TITLE_FONT_FAMILY]: PlayfairDisplay_500Medium });
 
   useEffect(() => {
     SplashScreen.hideAsync();
@@ -251,8 +304,10 @@ export default function RootLayout() {
 
   // pinLockChecked burada bekleniyor ki RootNavigator hiç mount olmadan önce
   // pinEnabled/locked kesinleşmiş olsun — aksi halde kilitli bir kullanıcı için
-  // gerçek içeriğin tek bir frame bile flaş etme ihtimali olurdu.
-  if (!hasHydrated || !authInitialized || !pinLockChecked) {
+  // gerçek içeriğin tek bir frame bile flaş etme ihtimali olurdu. fontsLoaded de
+  // aynı sebeple: başlık fontu (components/Screen.tsx) hazır olmadan gerçek
+  // navigasyon mount olursa başlıklar bir an sistem fontuyla flaş eder.
+  if (!hasHydrated || !authInitialized || !pinLockChecked || !fontsLoaded) {
     return (
       <View
         style={{

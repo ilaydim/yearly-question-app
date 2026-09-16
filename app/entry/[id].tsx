@@ -6,7 +6,7 @@ import type { LocationValue } from '../../components/LocationPicker';
 import { deleteEntry, getEntryById, updateEntry } from '../../lib/db/entries';
 import { getAllCategories } from '../../lib/db/categories';
 import { addPhoto, deletePhoto, getPhotosByEntryId } from '../../lib/db/photos';
-import { initDatabase, TRIP_CATEGORY_ID } from '../../lib/db/init';
+import { initDatabase } from '../../lib/db/init';
 import { toDateString } from '../../lib/date';
 import { useTheme } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
@@ -72,17 +72,16 @@ export default function EntryDetailScreen() {
 
   const handleSubmit = async () => {
     if (!content.trim() || !categoryId) return;
-    const isTrip = categoryId === TRIP_CATEGORY_ID;
     try {
       await updateEntry(id, {
         date: toDateString(date),
         content: content.trim(),
         mood,
         category_id: categoryId,
-        latitude: isTrip ? (location?.latitude ?? null) : null,
-        longitude: isTrip ? (location?.longitude ?? null) : null,
-        location_name: isTrip ? (location?.locationName ?? null) : null,
-        country: isTrip ? (location?.country ?? null) : null,
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
+        location_name: location?.locationName ?? null,
+        country: location?.country ?? null,
       });
       if (photoPath !== originalPhotoPath) {
         if (originalPhotoId) await deletePhoto(originalPhotoId);

@@ -1,78 +1,27 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, type ViewToken } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../components/Screen';
 import PenWritingAnimation from '../../components/PenWritingAnimation';
 import EntryRow from '../../components/EntryRow';
 import OnThisDayCarousel from '../../components/OnThisDayCarousel';
+import EntryPreviewModal from '../../components/EntryPreviewModal';
 import { getAllEntries, getEntriesForMonthDay } from '../../lib/db/entries';
 import { getAllCategories } from '../../lib/db/categories';
 import { getPhotoMap } from '../../lib/db/photos';
 import { getQuestionForDate } from '../../lib/db/questions';
 import { initDatabase } from '../../lib/db/init';
 import { toDateString } from '../../lib/date';
-import { useTheme, type Palette } from '../../lib/theme';
+import { useTheme } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
 import { useSettingsStore } from '../../lib/store/settingsStore';
+import { useAuthStore } from '../../lib/store/authStore';
+import { useProfileStore } from '../../lib/store/profileStore';
+import { useCloudProfileStore, useSyncCloudProfile } from '../../lib/store/cloudProfileStore';
+import { useScrollHeader } from '../../lib/useScrollHeader';
 import { PAPER } from '../../lib/paper';
 import type { Category, Entry, Question } from '../../lib/db/types';
-
-const DAY_WIDTH = 48;
-const DAYS_BEFORE = 30;
-const DAYS_AFTER = 30;
-
-function formatMonthLabel(date: Date, locale: string): string {
-  const label = date.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-function buildDayStrip(): Date[] {
-  const today = new Date();
-  const days: Date[] = [];
-  for (let i = -DAYS_BEFORE; i <= DAYS_AFTER; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    days.push(d);
-  }
-  return days;
-}
-
-function DayCell({
-  date,
-  selected,
-  isToday,
-  hasEntry,
-  weekdayLabel,
-  colors,
-  onPress,
-}: {
-  date: Date;
-  selected: boolean;
-  isToday: boolean;
-  hasEntry: boolean;
-  weekdayLabel: string;
-  colors: Palette;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable style={styles.dayCell} onPress={onPress}>
-      <Text style={[styles.dayWeekday, { color: colors.subtext }]}>{weekdayLabel}</Text>
-      <View
-        style={[
-          styles.dayCircle,
-          selected && { backgroundColor: colors.accent },
-          !selected && isToday && { borderWidth: 1.5, borderColor: colors.accent },
-        ]}
-      >
-        <Text style={[styles.dayNumber, { color: selected ? colors.accentText : colors.text }]}>
-          {date.getDate()}
-        </Text>
-      </View>
-      <View style={[styles.dayDot, { backgroundColor: hasEntry ? colors.accent : 'transparent' }]} />
-    </Pressable>
-  );
-}
 
 function NotebookCard({
   scheme,
@@ -106,27 +55,17 @@ export default function HomeScreen() {
   const { colors, scheme } = useTheme();
   const t = useT();
   const language = useSettingsStore((s) => s.language);
-  const locale = language === 'tr' ? 'tr-TR' : 'en-US';
+  const session = useAuthStore((s) => s.session);
+  const displayName = useProfileStore((s) => s.displayName);
+  const cloudProfile = useCloudProfileStore((s) => s.profile);
+  useSyncCloudProfile();
+  const { scrollY, onScroll } = useScrollHeader();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [categories, setCategories] = useState<Record<string, Category>>({});
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [todayQuestion, setTodayQuestion] = useState<Question | null>(null);
   const [onThisDayEntries, setOnThisDayEntries] = useState<Entry[]>([]);
-  const [selectedDate, setSelectedDate] = useState(() => toDateString(new Date()));
-  const [visibleMonthLabel, setVisibleMonthLabel] = useState(() =>
-    formatMonthLabel(new Date(), locale)
-  );
-
-  const dayStrip = useMemo(buildDayStrip, []);
-
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length === 0) return;
-      const mid = viewableItems[Math.floor(viewableItems.length / 2)];
-      if (mid?.item) setVisibleMonthLabel(formatMonthLabel(mid.item as Date, locale));
-    }
-  ).current;
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  const [previewEntry, setPreviewEntry] = useState<Entry | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -156,15 +95,18 @@ export default function HomeScreen() {
   );
 
   const todayStr = toDateString(new Date());
-  const entryDates = useMemo(() => new Set(entries.map((e) => e.date)), [entries]);
   const todaysEntries = useMemo(() => entries.filter((e) => e.date === todayStr), [entries, todayStr]);
   const questionAnsweredToday =
     !!todayQuestion && entries.some((e) => e.question_id === todayQuestion.id && e.date === todayStr);
 
+  const name = (session ? cloudProfile?.name : displayName) || null;
+  const greetingTitle = name ? t.home.greeting(name) : t.home.greetingGeneric;
+
   return (
     <Screen
       colors={colors}
-      title={t.tabs.home}
+      title={greetingTitle}
+      scrollY={scrollY}
       headerRight={
         <Pressable
           hitSlop={8}
@@ -175,38 +117,12 @@ export default function HomeScreen() {
         </Pressable>
       }
     >
-      <Text style={[styles.monthLabel, { color: colors.text }]}>{visibleMonthLabel}</Text>
-      <FlatList
-        data={dayStrip}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(d) => toDateString(d)}
-        style={styles.strip}
-        contentContainerStyle={styles.stripContent}
-        initialScrollIndex={DAYS_BEFORE}
-        getItemLayout={(_, index) => ({ length: DAY_WIDTH, offset: DAY_WIDTH * index, index })}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        renderItem={({ item }) => {
-          const dateStr = toDateString(item);
-          return (
-            <DayCell
-              date={item}
-              selected={dateStr === selectedDate}
-              isToday={dateStr === todayStr}
-              hasEntry={entryDates.has(dateStr)}
-              weekdayLabel={t.calendar.weekdays[(item.getDay() + 6) % 7]}
-              colors={colors}
-              onPress={() => setSelectedDate(dateStr)}
-            />
-          );
-        }}
-      />
-
-      <FlatList
+      <Animated.FlatList
         data={todaysEntries}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         ListHeaderComponent={
           <View style={styles.cards}>
             <NotebookCard
@@ -255,7 +171,9 @@ export default function HomeScreen() {
               categories={categories}
               photos={photos}
               colors={colors}
-              onPressEntry={(id) => router.push(`/entry/${id}`)}
+              onPressEntry={(id) =>
+                setPreviewEntry(onThisDayEntries.find((e) => e.id === id) ?? null)
+              }
             />
 
             <Text style={[styles.sectionTitle, { color: colors.subtext }]}>
@@ -269,56 +187,33 @@ export default function HomeScreen() {
         renderItem={({ item }) => (
           <EntryRow
             item={item}
-            category={categories[item.category_id]}
+            category={item.category_id ? categories[item.category_id] : undefined}
             photoUri={photos[item.id]}
             colors={colors}
             onPress={() => router.push(`/entry/${item.id}`)}
           />
         )}
       />
+
+      <EntryPreviewModal
+        entry={previewEntry}
+        category={
+          previewEntry?.category_id ? categories[previewEntry.category_id] : undefined
+        }
+        photoUri={previewEntry ? photos[previewEntry.id] : undefined}
+        onClose={() => setPreviewEntry(null)}
+        onEdit={() => {
+          if (!previewEntry) return;
+          const id = previewEntry.id;
+          setPreviewEntry(null);
+          router.push(`/entry/${id}`);
+        }}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  monthLabel: {
-    fontSize: 15,
-    fontWeight: '800',
-    paddingHorizontal: 16,
-    paddingTop: 4,
-  },
-  strip: {
-    flexGrow: 0,
-    paddingVertical: 10,
-  },
-  stripContent: {
-    paddingHorizontal: 8,
-  },
-  dayCell: {
-    width: DAY_WIDTH,
-    alignItems: 'center',
-    gap: 4,
-  },
-  dayWeekday: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  dayCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayNumber: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  dayDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
   cards: {
     paddingHorizontal: 16,
     paddingBottom: 4,

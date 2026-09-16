@@ -10,9 +10,11 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import Screen from './Screen';
 import PinPad from './PinPad';
 import { useTheme } from '../lib/theme';
+import { TITLE_FONT_FAMILY } from '../lib/fonts';
 import { useT } from '../lib/i18n';
 import { useAuthStore } from '../lib/store/authStore';
 import { verifyPin, setPin } from '../lib/security/pin';
@@ -20,6 +22,22 @@ import { signInWithEmail } from '../lib/supabase/auth';
 
 type Stage = 'enter' | 'forgot' | 'reset';
 type ResetSubStage = 'enter' | 'confirm';
+
+// LinearGradient renk duraklarını RGBA alfa ile karıştırmak (ör. `${accent}22`)
+// aradaki durağı YARI SAYDAM yapar — üstündeki her şeyin arkasından geçmişteki
+// ekran (bu durumda ana sayfa) görünür hale gelir. Bunun yerine iki tam OPAK
+// rengi RGB uzayında karıştırıp yine tam opak bir sonuç üretiyoruz.
+function mixOpaqueHex(base: string, tint: string, ratio: number): string {
+  const b = parseInt(base.slice(1), 16);
+  const t = parseInt(tint.slice(1), 16);
+  const mix = (shift: number) => {
+    const bc = (b >> shift) & 255;
+    const tc = (t >> shift) & 255;
+    return Math.round(bc + (tc - bc) * ratio);
+  };
+  const [r, g, bl] = [16, 8, 0].map(mix);
+  return `#${[r, g, bl].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
 
 interface PinLockScreenProps {
   onUnlock: () => void;
@@ -126,15 +144,27 @@ export default function PinLockScreen({ onUnlock }: PinLockScreenProps) {
     [resetSubStage, firstPin, onUnlock]
   );
 
+  // Screen'in kendi solid arka planı yerine gradyanın görünmesi için sadece bu
+  // ekrandaki kopyada bg'yi şeffaf yapıyoruz; text/subtext vb. diğer renkler aynı kalıyor.
+  const screenColors = { ...colors, bg: 'transparent' };
+
   return (
     <View style={styles.overlay}>
-      <Screen colors={colors} edges={['top', 'bottom']}>
+      <LinearGradient
+        colors={[colors.bg, mixOpaqueHex(colors.bg, colors.accent, 0.16), colors.bg]}
+        locations={[0, 0.55, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Screen colors={screenColors} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           {stage === 'enter' && (
             <View style={styles.centered}>
+              <Text style={[styles.brand, { color: colors.text }]}>{t.welcome.title}</Text>
               <Text style={[styles.title, { color: colors.text }]}>{t.pinLock.lockTitle}</Text>
               <Text style={[styles.subtitle, { color: colors.subtext }]}>
                 {t.pinLock.enterPinPrompt}
@@ -253,6 +283,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
     gap: 6,
+  },
+  brand: {
+    fontFamily: TITLE_FONT_FAMILY,
+    fontSize: 30,
+    marginBottom: 6,
   },
   title: {
     fontSize: 22,

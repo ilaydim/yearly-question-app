@@ -1,13 +1,28 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Link } from 'expo-router';
 import Screen from '../../components/Screen';
+import RingsIcon from '../../components/RingsIcon';
 import { signInWithEmail } from '../../lib/supabase/auth';
 import { useTheme } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
 
 export default function SignInScreen() {
-  const { colors } = useTheme();
+  // scheme'i de alıp RingsIcon'a EXPLICIT geçiriyoruz — bileşenin kendi varsayılanı
+  // ham cihaz ayarına (useColorScheme) düşer, oysa uygulamanın Ayarlar'dan seçilen
+  // manuel tema tercihini (system/light/dark) yansıtması gereken burası, yani
+  // useTheme()'in çözümlediği scheme kullanılmalı, yoksa ikon ile geri kalan ekran
+  // farklı temalarda kalabilir.
+  const { colors, scheme } = useTheme();
   const t = useT();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,11 +48,16 @@ export default function SignInScreen() {
 
   return (
     <Screen colors={colors} edges={['top', 'bottom']}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
     >
+      <View style={styles.iconWrap}>
+        <RingsIcon size={96} scheme={scheme} />
+      </View>
+
       <Text style={[styles.title, { color: colors.text }]}>{t.auth.signInTitle}</Text>
 
       <TextInput
@@ -75,11 +95,15 @@ export default function SignInScreen() {
         {t.auth.noAccount}
       </Link>
     </ScrollView>
+    </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   scroll: {
     flex: 1,
   },
@@ -89,10 +113,15 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 14,
   },
+  iconWrap: {
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   title: {
     fontSize: 24,
     fontWeight: '800',
     marginBottom: 8,
+    textAlign: 'center',
   },
   input: {
     borderRadius: 10,

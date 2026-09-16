@@ -20,11 +20,14 @@ module.exports = {
       },
     },
     android: {
+      // iconikai-icon-pack tek, düz (katmansız) bir görsel olarak geldi — ayrı bir
+      // arka plan/monochrome katmanı yok, bu yüzden foreground'un kendisi zaten opak
+      // ve tüm kareyi kaplıyor; backgroundColor sadece foreground'un altında kalan
+      // (görünmeyen) bir yedek. monochromeImage (Android 13+ themed icon) için
+      // kaynak pakette ayrıştırılmış bir siluet olmadığından bilerek eklenmedi.
       adaptiveIcon: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#384C76',
         foregroundImage: './assets/adaptive-icon-foreground.png',
-        backgroundImage: './assets/adaptive-icon-background.png',
-        monochromeImage: './assets/adaptive-icon-monochrome.png',
       },
       predictiveBackGestureEnabled: false,
       config: {
@@ -36,6 +39,7 @@ module.exports = {
     plugins: [
       'expo-router',
       'expo-sqlite',
+      'expo-font',
       '@react-native-community/datetimepicker',
       [
         'expo-image-picker',

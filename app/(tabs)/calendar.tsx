@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { LayoutAnimation, Pressable, ScrollView, SectionList, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Animated, LayoutAnimation, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Screen from '../../components/Screen';
 import EntryRow from '../../components/EntryRow';
@@ -10,6 +10,7 @@ import { toDateString } from '../../lib/date';
 import { useTheme } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
 import { useSettingsStore } from '../../lib/store/settingsStore';
+import { useScrollHeader } from '../../lib/useScrollHeader';
 import type { Category, Entry } from '../../lib/db/types';
 
 type ViewMode = 'calendar' | 'categories';
@@ -65,6 +66,7 @@ export default function CalendarScreen() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const { scrollY, onScroll } = useScrollHeader();
 
   const load = useCallback(async () => {
     try {
@@ -99,7 +101,7 @@ export default function CalendarScreen() {
   const categoryColorsByDate = useMemo(() => {
     const map: Record<string, string[]> = {};
     for (const entry of entries) {
-      const color = categoriesMap[entry.category_id]?.color;
+      const color = entry.category_id ? categoriesMap[entry.category_id]?.color : undefined;
       if (!color) continue;
       const list = (map[entry.date] ??= []);
       if (!list.includes(color)) list.push(color);
@@ -121,8 +123,22 @@ export default function CalendarScreen() {
     setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
   };
 
+  const lastTapRef = useRef<{ date: string; time: number } | null>(null);
+
   const selectDay = (dateStr: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const now = Date.now();
+    const lastTap = lastTapRef.current;
+    lastTapRef.current = { date: dateStr, time: now };
+
+    if (lastTap && lastTap.date === dateStr && now - lastTap.time < 300) {
+      lastTapRef.current = null;
+      router.push(`/entry/new?date=${dateStr}`);
+      return;
+    }
+
+    if (selectedDate === null) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
     setSelectedDate(dateStr);
   };
 
@@ -145,7 +161,7 @@ export default function CalendarScreen() {
   );
 
   return (
-    <Screen colors={colors} title={t.calendar.title}>
+    <Screen colors={colors} title={t.calendar.title} scrollY={scrollY}>
       <View style={[styles.modeSwitch, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Pressable
           style={[styles.modeItem, mode === 'calendar' && { backgroundColor: colors.accent }]}
@@ -176,7 +192,12 @@ export default function CalendarScreen() {
       </View>
 
       {mode === 'calendar' ? (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+        <Animated.ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.container}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+        >
           <View style={styles.header}>
             <Pressable onPress={() => changeMonth(-1)} style={styles.navButton}>
               <Text style={[styles.navText, { color: colors.accent }]}>‹</Text>
@@ -203,10 +224,12 @@ export default function CalendarScreen() {
                 const dayColors = categoryColorsByDate[dateStr] ?? [];
                 const isSelected = dateStr === selectedDate;
                 const isToday = dateStr === todayStr;
+                const filled = isSelected || isToday;
                 const circleSize = hasSelection ? 28 : 32;
                 return (
                   <Pressable key={j} style={styles.dayCell} onPress={() => selectDay(dateStr)}>
                     <View
+                      collapsable={false}
                       style={[
                         styles.dayCircle,
                         {
@@ -214,13 +237,11 @@ export default function CalendarScreen() {
                           height: circleSize,
                           borderRadius: circleSize / 2,
                         },
+                        !isSelected && isToday && { backgroundColor: colors.accentSecondary },
                         isSelected && { backgroundColor: colors.accent },
-                        !isSelected && isToday && { borderWidth: 1.5, borderColor: colors.accent },
                       ]}
                     >
-                      <Text
-                        style={[styles.dayText, { color: isSelected ? colors.accentText : colors.text }]}
-                      >
+                      <Text style={[styles.dayText, { color: filled ? colors.accentText : colors.text }]}>
                         {date.getDate()}
                       </Text>
                     </View>
@@ -249,7 +270,7 @@ export default function CalendarScreen() {
                 <EntryRow
                   key={entry.id}
                   item={entry}
-                  category={categoriesMap[entry.category_id]}
+                  category={entry.category_id ? categoriesMap[entry.category_id] : undefined}
                   colors={colors}
                   animate={false}
                   onPress={() => router.push(`/entry/${entry.id}`)}
@@ -258,10 +279,10 @@ export default function CalendarScreen() {
             )}
           </View>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       ) : (
         <>
-          <ScrollView
+          <Animated.ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipsScroll}
@@ -302,21 +323,23 @@ export default function CalendarScreen() {
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </Animated.ScrollView>
 
-          <SectionList
+          <Animated.SectionList
             sections={sections}
             keyExtractor={(item) => item.id}
             style={styles.scroll}
             contentContainerStyle={styles.diaryList}
             stickySectionHeadersEnabled={false}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
             renderSectionHeader={({ section }) => (
               <Text style={[styles.monthHeader, { color: colors.text }]}>{section.title}</Text>
             )}
             renderItem={({ item }) => (
               <EntryRow
                 item={item}
-                category={categoriesMap[item.category_id]}
+                category={item.category_id ? categoriesMap[item.category_id] : undefined}
                 colors={colors}
                 animate={false}
                 onPress={() => router.push(`/entry/${item.id}`)}
